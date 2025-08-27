@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +24,7 @@
     "@types/node": "^24.2.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.3",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   }
 }

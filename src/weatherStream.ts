@@ -1,4 +1,3 @@
-import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import * as Schedule from "effect/Schedule";
 import { WeatherApi } from "./services/weatherApi.js";
