@@ -2,7 +2,11 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Context from "effect/Context";
 import { Data, pipe, Schema } from "effect";
-import { HttpClient, HttpClientRequest } from "@effect/platform";
+import {
+  FetchHttpClient,
+  HttpClient,
+  HttpClientRequest,
+} from "@effect/platform";
 
 export class WeatherApiError extends Data.TaggedError("WeatherApiError")<{
   message: string;
@@ -32,13 +36,12 @@ const WeatherDataSchema = Schema.Struct({
 export type WeatherData = Schema.Schema.Type<typeof WeatherDataSchema>;
 export type WeatherApiErrors = WeatherApiError | CityNotFoundError;
 
-export interface WeatherApi {
-  getWeather: (
-    city: string,
-  ) => Effect.Effect<WeatherData, WeatherApiErrors, never>;
-}
-
-export const WeatherApiTag = Context.GenericTag<WeatherApi>("WeatherApi");
+export class WeatherService extends Context.Tag("WeatherService")<
+  WeatherService,
+  {
+    getWeather: (city: string) => Effect.Effect<WeatherData, WeatherApiErrors>;
+  }
+>() {}
 
 const cityCoords: Record<string, { lat: number; lon: number }> = {
   Calgary: { lat: 51.0447, lon: -114.0719 },
@@ -90,23 +93,18 @@ const fetchWeatherData = (city: string, lat: number, lon: number) =>
     ),
   );
 
-const makeWeatherApi = (httpClient: HttpClient.HttpClient): WeatherApi => ({
-  getWeather: (city: string) =>
-    pipe(
-      getCityCoords(city),
-      Effect.flatMap(({ lat, lon }) =>
-        pipe(
-          fetchWeatherData(city, lat, lon),
-          Effect.provideService(HttpClient.HttpClient, httpClient),
-        ),
-      ),
-    ),
-});
-
 export const WeatherApiLive = Layer.effect(
-  WeatherApiTag,
+  WeatherService,
   Effect.gen(function* () {
-    const httpClient = yield* HttpClient.HttpClient;
-    return makeWeatherApi(httpClient);
+    return {
+      getWeather: (city: string) =>
+        pipe(
+          getCityCoords(city),
+          Effect.flatMap(({ lat, lon }) =>
+            pipe(fetchWeatherData(city, lat, lon)),
+          ),
+          Effect.provide(FetchHttpClient.layer),
+        ),
+    };
   }),
 );

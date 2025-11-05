@@ -4,7 +4,7 @@ import {
   CityNotFoundError,
   WeatherApiError,
   WeatherApiLive,
-  WeatherApiTag,
+  WeatherService,
 } from "../services/weatherApi.js";
 import { NodeHttpClient } from "@effect/platform-node";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
@@ -12,7 +12,7 @@ import { HttpClient, HttpClientRequest } from "@effect/platform";
 describe("WeatherApi Integration Tests ", () => {
   it("should work with real API", async () => {
     const result = await Effect.gen(function* () {
-      const weatherApi = yield* WeatherApiTag;
+      const weatherApi = yield* WeatherService;
       return yield* weatherApi.getWeather("Calgary");
     }).pipe(
       Effect.provide(WeatherApiLive),
@@ -27,7 +27,7 @@ describe("WeatherApi Integration Tests ", () => {
 
   it("should fail for unsupported city", async () => {
     const result = await Effect.gen(function* () {
-      const weatherApi = yield* WeatherApiTag;
+      const weatherApi = yield* WeatherService;
       return yield* weatherApi.getWeather("CityDoesNotExist");
     }).pipe(
       Effect.provide(WeatherApiLive),
@@ -76,7 +76,7 @@ describe("WeatherApi Integration Tests ", () => {
 
   it("should handle network timeouts", async () => {
     const result = await Effect.gen(function* () {
-      const weatherApi = yield* WeatherApiTag;
+      const weatherApi = yield* WeatherService;
       return yield* weatherApi.getWeather("Calgary");
     }).pipe(
       Effect.timeout(Duration.millis(1)),

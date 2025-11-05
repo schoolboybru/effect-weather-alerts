@@ -1,13 +1,15 @@
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
-import { WeatherApiLive, WeatherApiTag } from "./services/weatherApi.js";
-import { weatherUpdates } from "./weatherStream.js";
-import { Console, pipe } from "effect";
+import { WeatherApiLive, WeatherService } from "./services/weatherApi.js";
+import { Console, pipe, Schedule } from "effect";
 import { NodeHttpClient } from "@effect/platform-node";
 
 const program = Effect.gen(function* () {
-  const weatherApi = yield* WeatherApiTag;
-  const updateStream = weatherUpdates(weatherApi, "Calgary");
+  const weatherApi = yield* WeatherService;
+  const updateStream = Stream.repeat(
+    weatherApi.getWeather("Calgary"),
+    Schedule.fixed("2 seconds"),
+  );
 
   yield* Stream.runForEach(updateStream, (weather) =>
     Console.log(
