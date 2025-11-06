@@ -1,28 +1,95 @@
 import * as Effect from "effect/Effect";
-import * as Stream from "effect/Stream";
-import { WeatherApiLive, WeatherService } from "./services/weatherApi.js";
-import { Console, pipe, Schedule } from "effect";
-import { NodeHttpClient } from "@effect/platform-node";
+import { WeatherService } from "./services/weatherApi.js";
+import { Layer, Logger, LogLevel, Schema } from "effect";
+import {
+  NodeHttpClient,
+  NodeHttpServer,
+  NodeRuntime,
+} from "@effect/platform-node";
+import {
+  HttpApi,
+  HttpApiBuilder,
+  HttpApiEndpoint,
+  HttpApiGroup,
+  HttpMiddleware,
+  HttpServer,
+} from "@effect/platform";
+import { createServer } from "http";
 
-const program = Effect.gen(function* () {
-  const weatherApi = yield* WeatherService;
-  const updateStream = Stream.repeat(
-    weatherApi.getWeather("Calgary"),
-    Schedule.fixed("2 seconds"),
-  );
+class HealthGroup extends HttpApiGroup.make("health")
+  .add(HttpApiEndpoint.get("get", "/").addSuccess(Schema.String))
+  .prefix("/health") {}
 
-  yield* Stream.runForEach(updateStream, (weather) =>
-    Console.log(
-      `Weather update: ${weather.city} - ${weather.temperature}, ${weather.condition}`,
-    ),
-  );
-});
+class WeatherGroup extends HttpApiGroup.make("Weather").add(
+  HttpApiEndpoint.get("weather", "/")
+    .setUrlParams(
+      Schema.Struct({
+        city: Schema.String,
+      }),
+    )
+    .addSuccess(
+      Schema.Struct({
+        city: Schema.String,
+        temperature: Schema.Number,
+        condition: Schema.String,
+      }),
+    )
+    .addError(
+      Schema.Struct({
+        _tag: Schema.Literal("CityNotFoundError"),
+        city: Schema.String,
+      }),
+      { status: 404 },
+    )
+    .addError(
+      Schema.Struct({
+        _tag: Schema.Literal("WeatherApiError"),
+        message: Schema.String,
+      }),
+      { status: 502 },
+    )
+    .prefix("/weather"),
+) {}
 
-const main = pipe(
-  program,
-  Effect.provide(WeatherApiLive),
-  Effect.provide(NodeHttpClient.layer),
-  Effect.catchAllCause(Effect.logError),
+const Api = HttpApi.make("Api").add(HealthGroup).add(WeatherGroup);
+
+const WeatherGroupLive = HttpApiBuilder.group(Api, "Weather", (handlers) =>
+  Effect.gen(function* () {
+    yield* Effect.logDebug("WeatherGroupLive");
+
+    return handlers.handle("weather", ({ urlParams }) =>
+      Effect.gen(function* () {
+        const weatherService = yield* WeatherService;
+        return yield* weatherService.getWeather(urlParams.city);
+      }),
+    );
+  }),
 );
 
-Effect.runPromise(main).catch(console.error);
+const HealthGroupLive = HttpApiBuilder.group(Api, "health", (handlers) =>
+  Effect.gen(function* () {
+    yield* Effect.logDebug("HealthGroupLive");
+
+    return handlers.handle("get", () => Effect.succeed("OK"));
+  }),
+);
+
+const ApiLive = HttpApiBuilder.api(Api).pipe(
+  Layer.provide(HealthGroupLive),
+  Layer.provide(WeatherGroupLive),
+  Layer.provide(WeatherService.Default),
+  Layer.provide(NodeHttpClient.layer),
+);
+
+const HttpLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
+  HttpServer.withLogAddress,
+  Layer.provide(ApiLive),
+  Layer.provide(Logger.minimumLogLevel(LogLevel.Info)),
+  Layer.provide(
+    NodeHttpServer.layer(createServer, {
+      port: 3000,
+    }),
+  ),
+);
+
+NodeRuntime.runMain(Layer.launch(HttpLive));

@@ -1,24 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { Duration, Effect } from "effect";
+import { Duration, Effect, Layer } from "effect";
 import {
   CityNotFoundError,
   WeatherApiError,
-  WeatherApiLive,
   WeatherService,
 } from "../services/weatherApi.js";
 import { NodeHttpClient } from "@effect/platform-node";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
 
 describe("WeatherApi Integration Tests ", () => {
+  const AppLayer = Layer.merge(WeatherService.Default, NodeHttpClient.layer);
+
   it("should work with real API", async () => {
     const result = await Effect.gen(function* () {
       const weatherApi = yield* WeatherService;
       return yield* weatherApi.getWeather("Calgary");
-    }).pipe(
-      Effect.provide(WeatherApiLive),
-      Effect.provide(NodeHttpClient.layer),
-      Effect.runPromise,
-    );
+    }).pipe(Effect.provide(AppLayer), Effect.runPromise);
 
     expect(result.city).toBe("Calgary");
     expect(typeof result.temperature).toBe("number");
@@ -29,12 +26,7 @@ describe("WeatherApi Integration Tests ", () => {
     const result = await Effect.gen(function* () {
       const weatherApi = yield* WeatherService;
       return yield* weatherApi.getWeather("CityDoesNotExist");
-    }).pipe(
-      Effect.provide(WeatherApiLive),
-      Effect.provide(NodeHttpClient.layer),
-      Effect.flip,
-      Effect.runPromise,
-    );
+    }).pipe(Effect.provide(AppLayer), Effect.flip, Effect.runPromise);
     expect(result).toBeInstanceOf(CityNotFoundError);
   });
 
@@ -80,8 +72,7 @@ describe("WeatherApi Integration Tests ", () => {
       return yield* weatherApi.getWeather("Calgary");
     }).pipe(
       Effect.timeout(Duration.millis(1)),
-      Effect.provide(WeatherApiLive),
-      Effect.provide(NodeHttpClient.layer),
+      Effect.provide(AppLayer),
       Effect.flip,
       Effect.runPromise,
     );

@@ -1,6 +1,4 @@
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
-import * as Context from "effect/Context";
 import { Data, pipe, Schema } from "effect";
 import {
   FetchHttpClient,
@@ -36,12 +34,23 @@ const WeatherDataSchema = Schema.Struct({
 export type WeatherData = Schema.Schema.Type<typeof WeatherDataSchema>;
 export type WeatherApiErrors = WeatherApiError | CityNotFoundError;
 
-export class WeatherService extends Context.Tag("WeatherService")<
-  WeatherService,
+export class WeatherService extends Effect.Service<WeatherService>()(
+  "WeatherService",
   {
-    getWeather: (city: string) => Effect.Effect<WeatherData, WeatherApiErrors>;
-  }
->() {}
+    dependencies: [FetchHttpClient.layer],
+    effect: Effect.gen(function* () {
+      return {
+        getWeather: (city: string) =>
+          pipe(
+            getCityCoords(city),
+            Effect.flatMap(({ lat, lon }) =>
+              pipe(fetchWeatherData(city, lat, lon)),
+            ),
+          ),
+      };
+    }),
+  },
+) {}
 
 const cityCoords: Record<string, { lat: number; lon: number }> = {
   Calgary: { lat: 51.0447, lon: -114.0719 },
@@ -92,19 +101,3 @@ const fetchWeatherData = (city: string, lat: number, lon: number) =>
       ),
     ),
   );
-
-export const WeatherApiLive = Layer.effect(
-  WeatherService,
-  Effect.gen(function* () {
-    return {
-      getWeather: (city: string) =>
-        pipe(
-          getCityCoords(city),
-          Effect.flatMap(({ lat, lon }) =>
-            pipe(fetchWeatherData(city, lat, lon)),
-          ),
-          Effect.provide(FetchHttpClient.layer),
-        ),
-    };
-  }),
-);
