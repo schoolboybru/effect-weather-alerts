@@ -15,6 +15,7 @@ import {
   HttpServer,
 } from "@effect/platform";
 import { createServer } from "http";
+import { LocationService } from "./services/locationService.js";
 
 class HealthGroup extends HttpApiGroup.make("health")
   .add(HttpApiEndpoint.get("get", "/").addSuccess(Schema.String))
@@ -48,6 +49,13 @@ class WeatherGroup extends HttpApiGroup.make("Weather").add(
       }),
       { status: 502 },
     )
+    .addError(
+      Schema.Struct({
+        _tag: Schema.Literal("LocationApiError"),
+        message: Schema.String,
+      }),
+      { status: 502 },
+    )
     .prefix("/weather"),
 ) {}
 
@@ -60,7 +68,15 @@ const WeatherGroupLive = HttpApiBuilder.group(Api, "Weather", (handlers) =>
     return handlers.handle("weather", ({ urlParams }) =>
       Effect.gen(function* () {
         const weatherService = yield* WeatherService;
-        return yield* weatherService.getWeather(urlParams.city);
+        const cityData = yield* LocationService;
+
+        const cities = yield* cityData.getLocation(urlParams.city);
+        const city = cities.results[0];
+        return yield* weatherService.getWeather(
+          city.name,
+          city.latitude,
+          city.longitude,
+        );
       }),
     );
   }),
@@ -74,10 +90,15 @@ const HealthGroupLive = HttpApiBuilder.group(Api, "health", (handlers) =>
   }),
 );
 
+const serviceLayer = Layer.merge(
+  WeatherService.Default,
+  LocationService.Default,
+);
+
 const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(HealthGroupLive),
   Layer.provide(WeatherGroupLive),
-  Layer.provide(WeatherService.Default),
+  Layer.provide(serviceLayer),
   Layer.provide(NodeHttpClient.layer),
 );
 

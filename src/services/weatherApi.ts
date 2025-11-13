@@ -1,5 +1,5 @@
 import * as Effect from "effect/Effect";
-import { Data, pipe, Schema } from "effect";
+import { Data, Schema } from "effect";
 import {
   FetchHttpClient,
   HttpClient,
@@ -40,28 +40,12 @@ export class WeatherService extends Effect.Service<WeatherService>()(
     dependencies: [FetchHttpClient.layer],
     effect: Effect.gen(function* () {
       return {
-        getWeather: (city: string) =>
-          pipe(
-            getCityCoords(city),
-            Effect.flatMap(({ lat, lon }) =>
-              pipe(fetchWeatherData(city, lat, lon)),
-            ),
-          ),
+        getWeather: (name: string, lat: number, lon: number) =>
+          fetchWeatherData(name, lat, lon),
       };
     }),
   },
 ) {}
-
-const cityCoords: Record<string, { lat: number; lon: number }> = {
-  Calgary: { lat: 51.0447, lon: -114.0719 },
-  Vancouver: { lat: 49.2827, lon: -123.1207 },
-  Toronto: { lat: 43.6532, lon: -79.3832 },
-};
-
-const getCityCoords = (city: string) =>
-  Effect.fromNullable(cityCoords[city]).pipe(
-    Effect.mapError(() => new CityNotFoundError({ city })),
-  );
 
 const buildWeatherUrl = (lat: number, lon: number) =>
   `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
