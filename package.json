@@ -21,6 +21,7 @@
     "effect": "^3.17.7"
   },
   "devDependencies": {
+    "@effect/language-service": "^0.57.1",
     "@types/node": "^24.2.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.3",
