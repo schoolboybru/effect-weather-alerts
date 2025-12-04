@@ -1,9 +1,9 @@
+import { Data, Effect, Schema } from "effect";
 import {
   FetchHttpClient,
   HttpClient,
   HttpClientRequest,
 } from "@effect/platform";
-import { Data, Effect, Schema } from "effect";
 
 export class LocationApiError extends Data.TaggedError("LocationApiError")<{
   message: string;
@@ -25,6 +25,7 @@ export type LocationData = Schema.Schema.Type<typeof LocationResponseSchema>;
 export class LocationService extends Effect.Service<LocationService>()(
   "LocationService",
   {
+    accessors: true,
     dependencies: [FetchHttpClient.layer],
     effect: Effect.gen(function* () {
       return {
@@ -38,13 +39,20 @@ export class LocationService extends Effect.Service<LocationService>()(
 
             return yield* transformLocationData(json);
           }).pipe(
-            Effect.catchAll((error) =>
-              Effect.fail(
-                new LocationApiError({
-                  message: `Failed to fetch weather data: ${error}`,
-                }),
-              ),
-            ),
+            Effect.catchTags({
+              RequestError: (error) =>
+                Effect.fail(
+                  new LocationApiError({
+                    message: `Failed to fetch location data: ${error.reason}`,
+                  }),
+                ),
+              ResponseError: (error) =>
+                Effect.fail(
+                  new LocationApiError({
+                    message: `Location API returned error: ${error.response.status}`,
+                  }),
+                ),
+            }),
           ),
       };
     }),

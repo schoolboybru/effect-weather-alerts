@@ -1,5 +1,5 @@
-import { HttpApiBuilder, HttpServerResponse, OpenApi } from "@effect/platform";
 import { Effect } from "effect";
+import { HttpApiBuilder, HttpServerResponse, OpenApi } from "@effect/platform";
 import { Api } from "../index.js";
 
 export const DocsGroupLive = HttpApiBuilder.group(Api, "docs", (handlers) =>

@@ -1,5 +1,4 @@
-import * as Effect from "effect/Effect";
-import { Data, Schema } from "effect";
+import { Data, Effect, Schema } from "effect";
 import {
   FetchHttpClient,
   HttpClient,
@@ -37,6 +36,7 @@ export type WeatherApiErrors = WeatherApiError | CityNotFoundError;
 export class WeatherService extends Effect.Service<WeatherService>()(
   "WeatherService",
   {
+    accessors: true,
     dependencies: [FetchHttpClient.layer],
     effect: Effect.gen(function* () {
       return {
@@ -77,11 +77,18 @@ const fetchWeatherData = (city: string, lat: number, lon: number) =>
 
     return yield* transformWeatherData(city, json);
   }).pipe(
-    Effect.catchAll((error) =>
-      Effect.fail(
-        new WeatherApiError({
-          message: `Failed to fetch weather data: ${error}`,
-        }),
-      ),
-    ),
+    Effect.catchTags({
+      RequestError: (error) =>
+        Effect.fail(
+          new WeatherApiError({
+            message: `Failed to fetch weather data: ${error.reason}`,
+          }),
+        ),
+      ResponseError: (error) =>
+        Effect.fail(
+          new WeatherApiError({
+            message: `Weather API returned error: ${error.response.status}`,
+          }),
+        ),
+    }),
   );

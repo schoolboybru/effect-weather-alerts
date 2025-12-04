@@ -5,16 +5,26 @@ import {
   WeatherApiError,
   WeatherService,
 } from "../services/weatherApi.js";
+import { LocationService } from "../services/locationService.js";
 import { NodeHttpClient } from "@effect/platform-node";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
 
 describe("WeatherApi Integration Tests ", () => {
-  const AppLayer = Layer.merge(WeatherService.Default, NodeHttpClient.layer);
+  const AppLayer = Layer.mergeAll(
+    WeatherService.Default,
+    LocationService.Default,
+    NodeHttpClient.layer,
+  );
 
   it("should work with real API", async () => {
     const result = await Effect.gen(function* () {
-      const weatherApi = yield* WeatherService;
-      return yield* weatherApi.getWeather("Calgary");
+      const location = yield* LocationService.getLocation("Calgary");
+      const city = location.results[0];
+      return yield* WeatherService.getWeather(
+        city.name,
+        city.latitude,
+        city.longitude,
+      );
     }).pipe(Effect.provide(AppLayer), Effect.runPromise);
 
     expect(result.city).toBe("Calgary");
@@ -24,8 +34,13 @@ describe("WeatherApi Integration Tests ", () => {
 
   it("should fail for unsupported city", async () => {
     const result = await Effect.gen(function* () {
-      const weatherApi = yield* WeatherService;
-      return yield* weatherApi.getWeather("CityDoesNotExist");
+      const location = yield* LocationService.getLocation("CityDoesNotExist");
+      const city = location.results[0];
+      return yield* WeatherService.getWeather(
+        city.name,
+        city.latitude,
+        city.longitude,
+      );
     }).pipe(Effect.provide(AppLayer), Effect.flip, Effect.runPromise);
     expect(result).toBeInstanceOf(CityNotFoundError);
   });
@@ -68,8 +83,13 @@ describe("WeatherApi Integration Tests ", () => {
 
   it("should handle network timeouts", async () => {
     const result = await Effect.gen(function* () {
-      const weatherApi = yield* WeatherService;
-      return yield* weatherApi.getWeather("Calgary");
+      const location = yield* LocationService.getLocation("Calgary");
+      const city = location.results[0];
+      return yield* WeatherService.getWeather(
+        city.name,
+        city.latitude,
+        city.longitude,
+      );
     }).pipe(
       Effect.timeout(Duration.millis(1)),
       Effect.provide(AppLayer),

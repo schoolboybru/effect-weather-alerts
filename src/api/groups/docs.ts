@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup } from "@effect/platform";
 import { Schema } from "effect";
+import { HttpApiEndpoint, HttpApiGroup } from "@effect/platform";
 
 export class DocsGroup extends HttpApiGroup.make("docs")
   .add(

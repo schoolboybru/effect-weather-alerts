@@ -1,8 +1,8 @@
+import { Effect } from "effect";
 import { HttpApiBuilder } from "@effect/platform";
 import { Api } from "../index.js";
-import { Effect } from "effect";
 import { WeatherService } from "../../services/weatherApi.js";
-import { LocationService } from "../../services/locationService.js";
+import { CacheService } from "../../services/cacheService.js";
 
 export const WeatherGroupLive = HttpApiBuilder.group(
   Api,
@@ -15,13 +15,10 @@ export const WeatherGroupLive = HttpApiBuilder.group(
         Effect.gen(function* () {
           const start = Date.now();
 
-          const weatherService = yield* WeatherService;
-          const cityData = yield* LocationService;
-
           yield* Effect.logInfo(`Services resolved in ${Date.now() - start}ms`);
           const locationStart = Date.now();
 
-          const cities = yield* cityData.getLocation(urlParams.city);
+          const cities = yield* CacheService.getLocation(urlParams.city);
           yield* Effect.logInfo(
             `Location API took ${Date.now() - locationStart}ms`,
           );
@@ -29,7 +26,7 @@ export const WeatherGroupLive = HttpApiBuilder.group(
           const city = cities.results[0];
           const weatherStart = Date.now();
 
-          const result = yield* weatherService.getWeather(
+          const result = yield* WeatherService.getWeather(
             city.name,
             city.latitude,
             city.longitude,

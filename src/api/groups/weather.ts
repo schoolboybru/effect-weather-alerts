@@ -1,12 +1,5 @@
-import {
-  HttpApiBuilder,
-  HttpApiEndpoint,
-  HttpApiGroup,
-} from "@effect/platform";
-import { Effect, Schema } from "effect";
-import { WeatherService } from "../../services/weatherApi.js";
-import { LocationService } from "../../services/locationService.js";
-import { Api } from "../index.js";
+import { Schema } from "effect";
+import { HttpApiEndpoint, HttpApiGroup } from "@effect/platform";
 
 export class WeatherGroup extends HttpApiGroup.make("Weather").add(
   HttpApiEndpoint.get("weather", "/")
